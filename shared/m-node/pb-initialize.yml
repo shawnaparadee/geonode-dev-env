@@ -1,0 +1,66 @@
+- name: Provision the Vagrant machine as a Management Node (m-node)
+  hosts: localhost
+  connection: local
+  become: yes
+  gather_facts: yes
+
+  vars:
+
+  tasks:
+
+  - name: Add a directory for Ansible callback plugins
+    file: path=/usr/share/ansible/plugins/callback state=directory
+
+  - name: Add module to create human readable output
+    template:
+      src: /home/vagrant/shared/m-node/human_log.py
+      dest: /usr/share/ansible/plugins/callback
+
+  - name: Add a directory for ansible.cfg
+    file:
+      path: /etc/ansible
+      state: directory
+
+  - name: Add ansible.cfg
+    template:
+      src: /home/vagrant/shared/m-node/ansible.cfg
+      dest: /etc/ansible/ansible.cfg
+
+  - name: Add pretty-print module to Ansible
+    blockinfile:
+      dest: /etc/ansible/ansible.cfg
+      marker: "# {mark} ANSIBLE MANAGED CALLBACK PLUGIN BLOCK "
+      insertafter: '#callback_plugins   = /usr/share/ansible/plugins/callback'
+      content: |
+        callback_plugins   = /usr/share/ansible/plugins/callback
+
+  - name: Prevent 'retry' file creation
+    blockinfile:
+      dest: /etc/ansible/ansible.cfg
+      marker: "# {mark} ANSIBLE MANAGED RETRY BLOCK"
+      insertbefore: "#retry_files_enabled = False"
+      content: |
+        retry_files_enabled = False
+
+  - name: ensure apt cache is up to date
+    apt: update_cache=yes
+
+  - name: dist-upgrade
+    apt: upgrade=dist cache_valid_time=86400
+
+  - name: Ensure required packages are installed
+    apt: name={{item}}
+    with_items:
+      - git
+      - zip
+      - tree
+      - curl
+      - acl
+
+  - name: 'Pip installs'
+    pip:
+      name: "{{ item}}"
+    with_items:
+      - awscli
+      - boto
+

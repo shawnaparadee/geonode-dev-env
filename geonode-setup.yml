@@ -1,0 +1,83 @@
+- name: Configure and Deploy GeoNode
+  hosts: localhost
+  become: True
+  gather_facts: True
+
+  vars:
+    geoserver_user_password: moonlander
+    tomcat_admin_password: moonlander
+    postgres_user_password: moonlander
+
+  tasks:
+
+  - name: ensure apt cache is up to date
+    apt: update_cache=yes
+
+  - name: dist-upgrade
+    apt: upgrade=dist cache_valid_time=86400
+
+  - name: ensure packages are installed
+    apt: name={{item}}
+    with_items:
+      - git
+      - tree
+      - curl
+      - unzip
+      - nfs-common
+      - default-jdk
+      - maven
+      - tomcat8
+      - tomcat8-admin
+      - python-pip # enables boto install
+      - python-psycopg2
+      - postgresql-common
+      - postgresql-9.5-postgis-2.2
+      - postgresql-contrib-9.5
+      - postgresql-server-dev-9.5
+
+  - name: Configure tomcat users
+    template:
+      src: /home/vagrant/shared/templates/tomcatusers.xml.j2
+      dest: /etc/tomcat8/tomcat-users.xml
+      mode: 0644
+      force: True
+
+  - name: Configure tomcat memory
+    template:
+      src: /home/vagrant/shared/resources/tomcat8
+      dest: /etc/default/tomcat8
+      mode: 0640
+      force: True
+
+  - name: Change max file size
+    template:
+      src: /home/vagrant/shared/resources/tomcat-web.xml
+      dest: /usr/share/tomcat8-admin/manager/WEB-INF/web.xml
+      mode: 0644
+      force: True
+
+  - name: Unarchive the included Geoserver zip
+    unarchive:
+      src: /home/vagrant/shared/resources/geoserver-2.8.2-war.zip
+      dest: /var/lib/tomcat8/webapps/
+
+  - name: Restart tomcat
+    shell: service tomcat8 restart
+
+  - name: Unarchive and add Importer plugin to Geoserver
+    unarchive:
+      src: /home/vagrant/shared/resources/geoserver-2.8.2-importer-plugin.zip
+      dest: /var/lib/tomcat8/webapps/geoserver/WEB-INF/lib
+
+  - name: Restart tomcat
+    shell: service tomcat8 restart
+
+  - name: Install AWS-CLI
+    pip:
+      name: awscli
+      state: latest
+
+  - name: Install boto
+    pip:
+      name: boto
+      state: latest
