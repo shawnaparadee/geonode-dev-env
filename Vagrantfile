@@ -7,6 +7,9 @@ Vagrant.configure(2) do |config|
   # Shared folder
   config.vm.synced_folder "shared", "/home/vagrant/shared"
 
+  # forward postgres port
+  config.vm.network "forwarded_port", guest: 5432, host: 5434
+
   config.vm.provider "virtualbox" do |v|
     v.memory = 2000
     v.cpus = 1

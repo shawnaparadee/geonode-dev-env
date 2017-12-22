@@ -1,0 +1,282 @@
+- name: Configure and Deploy GeoNode
+  hosts: localhost
+  become: True
+  gather_facts: True
+
+  vars:
+    geo_user_password: garfield
+    postgres_user_password: garfield
+
+  tasks:
+
+  - name: Run the equivalent of "apt-get update" as a separate step
+    apt:
+      update_cache: yes
+  
+  - name: Install the package "aptitude"
+    apt:
+      name: aptitude
+      state: present
+
+  - name: Run the equivalent of "apt-get upgrade" as a separate step
+    apt:
+      upgrade: yes
+
+  - name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
+    apt:
+      update_cache: yes
+      cache_valid_time: 3600
+
+  - name: Install the package "build-essential"
+    apt:
+      name: build-essential
+      state: present
+
+  - name: Install the package "libxml2-dev"
+    apt:
+      name: libxml2-dev
+      state: present
+
+  - name: Install the package "libxslt1-dev"
+    apt:
+      name: libxslt1-dev
+      state: present
+
+  - name: Install the package "libpq-dev"
+    apt:
+      name: libpq-dev
+      state: present
+
+  - name: Install the package "zlib1g-dev"
+    apt:
+      name: zlib1g-dev
+      state: present
+
+  - name: Install the package "python-dev"
+    apt:
+      name: python-dev
+      state: present
+
+  - name: Install the package "python-imaging"
+    apt:
+      name: python-imaging
+      state: present
+
+  - name: Install the package "python-psycopg2"
+    apt:
+      name: python-psycopg2
+      state: present
+
+  - name: Install the package "python-lxml"
+    apt:
+      name: python-lxml
+      state: present
+
+  - name: Install the package "python-pyproj"
+    apt:
+      name: python-pyproj
+      state: present
+
+  - name: Install the package "python-shapely"
+    apt:
+      name: python-shapely
+      state: present
+
+  - name: Install the package "python-nose"
+    apt:
+      name: python-nose
+      state: present
+
+  - name: Install the package "python-httplib2"
+    apt:
+      name: python-httplib2
+      state: present
+
+  - name: Install the package "python-pip"
+    apt:
+      name: python-pip
+      state: present
+
+  - name: Install the package "python-software-properties"
+    apt:
+      name: python-software-properties
+      state: present
+  
+  - name: Install the package "postgresql-common"
+    apt:
+      name: postgresql-common
+      state: present
+
+  - name: Install the package "postgresql-9.5-postgis-2.2"
+    apt:
+      name: postgresql-9.5-postgis-2.2
+      state: present
+  
+  - name: Install the package "postgresql-contrib-9.5"
+    apt:
+      name: postgresql-contrib-9.5
+      state: present
+
+  - name: Install the package "apache2"
+    apt:
+      name: apache2
+      state: present
+
+  - name: Install the package "tomcat8"
+    apt:
+      name: tomcat8
+      state: present
+
+  - name: Install the package "default-jre"
+    apt:
+      name: default-jre
+      state: present
+      force: yes
+      install_recommends: no
+
+  # Install (virtualenvwrapper) python package.
+  # - pip:
+  #     name: virtualenvwrapper    
+
+  - name: Add Postgresql trusted connections
+    lineinfile:
+      dest: /etc/postgresql/9.5/main/pg_hba.conf
+      line: host all all 0.0.0.0/0 trust
+
+  - name: Open up Postgres via config settings all and restart
+    lineinfile: dest=/etc/postgresql/9.5/main/postgresql.conf line="listen_addresses = '*'"
+
+  - name: Restart Postgresql
+    shell: service postgresql restart
+
+  - name: Change postgres user password
+    become: true
+    become_user: postgres
+    command: psql -U postgres -c "ALTER USER postgres with password '{{ postgres_user_password }}';"
+
+  - name: Create a directory for the postgres user
+    file: path=/home/postgres state=directory owner=postgres
+  
+  - name: Create geonode_dev database
+    postgresql_db:
+      state: present
+      login_password: "{{ postgres_user_password }}"
+      name: geonode_dev
+      port: 5432
+    become_user: postgres
+  
+  - name: Create geonode_dev-import database
+    postgresql_db:
+      state: present
+      login_password: "{{ postgres_user_password }}"
+      name: geonode_dev-import
+      port: 5432
+    become_user: postgres
+
+  - name: Create PostGIS Extension
+    postgresql_ext:
+      db: geonode_dev-import
+      name: postgis
+      login_user: postgres
+      login_password: "{{ postgres_user_password }}"
+      port: 5432
+    become_user: postgres
+
+  - name: Create a "pgadmin" Postgres user
+    postgresql_user:
+      db: geonode_dev
+      name: pgadmin
+      password: "{{ postgres_user_password }}"
+      login_password: "{{ postgres_user_password }}"
+      port: 5432
+    become: True
+    become_user: postgres
+
+  - name: Create a "pgadmin" Postgres user
+    postgresql_user:
+      db: geonode_dev-import
+      name: pgadmin
+      password: "{{ postgres_user_password }}"
+      login_password: "{{ postgres_user_password }}"
+      port: 5432
+    become: True
+    become_user: postgres
+
+  - name: Create a "geonode_dev" Postgres user
+    postgresql_user:
+      db: geonode_dev
+      name: geonode_dev
+      password: "{{ postgres_user_password }}"
+      login_password: "{{ postgres_user_password }}"
+      port: 5432
+    become: True
+    become_user: postgres
+
+  - name: Create a "geonode_dev" Postgres user
+    postgresql_user:
+      db: geonode_dev-import
+      name: geonode_dev
+      password: "{{ postgres_user_password }}"
+      login_password: "{{ postgres_user_password }}"
+      port: 5432
+    become: True
+    become_user: postgres
+  
+  - name: Install AWS-CLI
+    pip:
+      name: awscli
+      state: latest
+
+  - name: Install boto
+    pip:
+      name: boto
+      state: latest
+
+  # - name: Create virtual environment directory
+  #   file:
+  #     path: /home/geonode/dev
+  #     state: directory
+  #     mode: 0755
+
+  # - name: Grant rights to execute virtual-env.sh 
+  #   file:
+  #     path: /home/vagrant/shared/virtual-env.sh
+  #     mode: 0755
+
+  # - name: Execute the .sh file to create the virtual environment
+  #   script: /home/vagrant/shared/virtual-env.sh
+  #   args:
+  #     chdir: /home/geonode/dev
+
+  # - name: Create geonode repo folder (not done automatically with ansible git clone)
+  #   file:
+  #     path: /home/geonode/dev/geonode
+  #     state: directory
+  #     mode: 0755
+
+  # - name: Clone the geonode repo
+  #   git:
+  #     repo: 'https://github.com/GeoNode/geonode.git'
+  #     dest: /home/geonode/dev/geonode
+
+  - name: Add geonode via PPA
+    apt_repository:
+      repo: 'ppa:geonode/stable'
+ 
+  - name: Install the package "geonode"
+    apt:
+      name: geonode
+      state: present
+      # update_cache: yes
+
+  - name: Add geonode superuser 
+    shell: geonode createsuperuser
+
+  # - name: Install the package "nodejs"
+  #   apt:
+  #     name: nodejs
+  #     state: present
+  #     update_cache: yes
+  
+  # - name: Install npm 
+  #   shell: npm install --save-dev
